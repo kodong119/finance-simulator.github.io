@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>커버드콜 손익 시뮬레이터</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --text: #e8eaf0;
+    --text2: #8b90a8;
+    --blue: #4a9eff;
+    --blue-dim: rgba(74,158,255,0.12);
+    --green: #2ecc8f;
+    --green-dim: rgba(46,204,143,0.12);
+    --red: #ff6b6b;
+    --red-dim: rgba(255,107,107,0.12);
+    --amber: #f0a500;
+    --amber-dim: rgba(240,165,0,0.12);
+    --gray: #6b7080;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 2.5rem;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--blue);
+    background: var(--blue-dim);
+    border: 1px solid rgba(74,158,255,0.2);
+    border-radius: 4px;
+    padding: 3px 10px;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 span { color: var(--blue); }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .card-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--blue);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 2px var(--blue);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .stat-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.02em;
+  }
+
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .blue { color: var(--blue); }
+  .amber { color: var(--amber); }
+
+  .chart-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+
+  .chart-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .legend {
+    display: flex;
+    gap: 1.25rem;
+    font-size: 12px;
+    color: var(--text2);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-line {
+    width: 18px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  .legend-dashed {
+    width: 18px;
+    height: 0;
+    border-top: 2px dashed var(--gray);
+  }
+
+  .chart-container {
+    position: relative;
+    height: 300px;
+  }
+
+  .structure {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .structure-title {
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+  }
+
+  .step {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 0.9rem;
+    position: relative;
+  }
+
+  .step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.05em;
+  }
+
+  .step-desc {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  @media (max-width: 600px) {
+    .grid-3, .stat-grid { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: repeat(2, 1fr); }
+    h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">Options Strategy</div>
+    <h1>커버드콜 <span>손익 시뮬레이터</span></h1>
+    <p class="subtitle">주식 보유 + 콜옵션 매도 조합 전략 — 슬라이더를 조정해 손익 구조를 확인하세요</p>
+  </header>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-label">주식 매입가</div>
+      <div class="card-value blue" id="stock-val">₩50,000</div>
+      <input type="range" min="30000" max="70000" step="1000" value="50000" id="stock-price">
+    </div>
+    <div class="card">
+      <div class="card-label">콜옵션 행사가</div>
+      <div class="card-value amber" id="strike-val">₩55,000</div>
+      <input type="range" min="35000" max="75000" step="1000" value="55000" id="strike-price">
+    </div>
+    <div class="card">
+      <div class="card-label">수취 프리미엄</div>
+      <div class="card-value green" id="premium-val">₩2,000</div>
+      <input type="range" min="500" max="8000" step="500" value="2000" id="premium">
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">최대 이익</div>
+      <div class="stat-value green" id="max-profit">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">손익분기점</div>
+      <div class="stat-value" id="breakeven">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">최대 손실 (주가 0원)</div>
+      <div class="stat-value red" id="max-loss">-</div>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <div class="chart-header">
+      <div class="chart-title">만기 손익 그래프</div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-line" style="background:#4a9eff;"></div>
+          <span>커버드콜</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dashed"></div>
+          <span>주식만 보유</span>
+        </div>
+      </div>
+    </div>
+    <div class="chart-container">
+      <canvas id="chart" role="img" aria-label="커버드콜 전략과 주식 단순 보유의 만기 손익 비교 그래프"></canvas>
+    </div>
+  </div>
+
+  <div class="structure">
+    <div class="structure-title">전략 구조</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num blue">① 주식 매수</div>
+        <div class="step-desc">현물 주식을 보유합니다. 이게 담보 역할을 해요.</div>
+      </div>
+      <div class="step">
+        <div class="step-num blue">② 콜옵션 매도</div>
+        <div class="step-desc">보유 주식을 담보로 특정 가격에 팔 의무를 집니다.</div>
+      </div>
+      <div class="step">
+        <div class="step-num green">③ 프리미엄 수취</div>
+        <div class="step-desc">옵션 판 대가로 현금을 즉시 받아요. 이게 추가 수익.</div>
+      </div>
+      <div class="step">
+        <div class="step-num red">④ 상단 이익 제한</div>
+        <div class="step-desc">주가가 행사가 위로 오르면 주식을 넘겨야 해서 추가 상승분을 못 먹어요.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let chartInst = null;
+
+function fmt(n) {
+  return '₩' + Math.round(n).toLocaleString();
+}
+
+function update() {
+  const S = parseInt(document.getElementById('stock-price').value);
+  const K = parseInt(document.getElementById('strike-price').value);
+  const P = parseInt(document.getElementById('premium').value);
+
+  document.getElementById('stock-val').textContent = fmt(S);
+  document.getElementById('strike-val').textContent = fmt(K);
+  document.getElementById('premium-val').textContent = fmt(P);
+
+  const maxProfit = (K - S) + P;
+  const breakeven = S - P;
+  const maxLoss = -(breakeven);
+
+  document.getElementById('max-profit').textContent = fmt(maxProfit);
+  document.getElementById('breakeven').textContent = fmt(breakeven);
+  document.getElementById('max-loss').textContent = fmt(maxLoss);
+
+  const min = Math.round(S * 0.45 / 1000) * 1000;
+  const max = Math.round(S * 1.65 / 1000) * 1000;
+  const steps = 24;
+  const step = Math.round((max - min) / steps / 1000) * 1000 || 1000;
+
+  const labels = [], covered = [], stockOnly = [];
+
+  for (let price = min; price <= max; price += step) {
+    labels.push(fmt(price));
+    const stockPnL = price - S;
+    const coveredPnL = price <= K ? (price - S) + P : (K - S) + P;
+    covered.push(Math.round(coveredPnL));
+    stockOnly.push(Math.round(stockPnL));
+  }
+
+  const ctx = document.getElementById('chart').getContext('2d');
+  if (chartInst) chartInst.destroy();
+
+  chartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '커버드콜',
+          data: covered,
+          borderColor: '#4a9eff',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0
+        },
+        {
+          label: '주식만 보유',
+          data: stockOnly,
+          borderColor: '#6b7080',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#8b90a8',
+          bodyColor: '#e8eaf0',
+          titleFont: { family: 'JetBrains Mono', size: 11 },
+          bodyFont: { family: 'JetBrains Mono', size: 12 },
+          callbacks: {
+            label: ctx => ctx.dataset.label + ': ' + fmt(ctx.parsed.y)
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#6b7080', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8, autoSkip: true },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        },
+        y: {
+          ticks: { color: '#6b7080', font: { family: 'JetBrains Mono', size: 10 }, callback: v => fmt(v) },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      }
+    }
+  });
+}
+
+['stock-price', 'strike-price', 'premium'].forEach(id => {
+  document.getElementById(id).addEventListener('input', update);
+});
+
+update();
+</script>
+</body>
+</html>
